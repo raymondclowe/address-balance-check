@@ -4,7 +4,32 @@ import subprocess
 import json
 
 
+def find_electrum_path():
+    print("start: find_electrum_path")
+    """
+    Finds the Electrum executable based on common locations it might be located in.
+    Returns the path to the executable if found, otherwise returns None.
+    """
+    if os.name == 'nt': # Windows
+        paths_to_check = ['C:/Program Files (x86)/Electrum', 'C:/Program Files/Electrum']
+        for path in paths_to_check:
+            for file_name in os.listdir(path):
+                if 'electrum' in file_name.lower() and 'debug' not in file_name.lower() and file_name.endswith('.exe'):
+                    return os.path.join(path, file_name)
+    else: # Unix-like
+        paths_to_check = ['/usr/bin', '/usr/local/bin', '/opt', os.path.expanduser('~/bin')]
+        for path in paths_to_check:
+            for file_name in os.listdir(path):
+                if 'electrum' in file_name.lower() and 'debug' not in file_name.lower() and os.access(os.path.join(path, file_name), os.X_OK):
+                    return os.path.join(path, file_name)
+    return None
+    print("end: find_electrum_path")
+
+
+
+
 def start_daemon(electrum_path):
+    print("start: start_daemon")
     # start Electrum daemon as a subprocess
     daemon_proc = subprocess.Popen([electrum_path, "daemon"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
@@ -13,20 +38,31 @@ def start_daemon(electrum_path):
     if daemon_proc.returncode != 0:
         print(f"Error starting daemon: {error}")
         exit()
+    print("end: start_daemon")
+
 
 
 def stop_daemon(electrum_path):
+    print("start: stop_daemon")
     # stop the Electrum daemon
-    subprocess.Popen([electrum_path, "stop"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = subprocess.Popen([electrum_path, "stop"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output, error = proc.communicate()
+    if proc.returncode != 0:
+        print(f"Error stopping daemon: {error}")
+    print("end: stop_daemon")
+
 
 
 def get_wallet_files(wallets_folder):
+    print("start: get_wallet_files")
     # find all the wallet files in the folder
     wallet_files = [os.path.join(wallets_folder, f) for f in os.listdir(wallets_folder) if f.endswith(".dat")]
     return wallet_files
+    print("end: get_wallet_files")
 
 
 def get_wallet_data(wallet_file, electrum_path):
+    print("start: get_wallet_data")
     data_list = []
     # open the wallet using Electrum CLI
     proc = subprocess.Popen([electrum_path, "-w", wallet_file, "listaddresses"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -53,50 +89,4 @@ def get_wallet_data(wallet_file, electrum_path):
         tx_count = balance_data["history"]
 
         # add the data to the list
-        data_list.append({
-            "wallet_name": os.path.basename(wallet_file),
-            "address": address,
-            "balance": balance,
-            "tx_count": tx_count
-        })
-
-    return data_list
-
-
-def write_to_csv(data_list):
-    # output the data to a CSV file
-    with open("wallet_data.csv", mode="w", newline="") as csv_file:
-        fieldnames = ["wallet_name", "address", "balance", "tx_count"]
-        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-        
-        writer.writeheader()
-        for data in data_list:
-            writer.writerow(data)
-
-
-# set the path to the Electrum executable
-electrum_path = "C:/path/to/electrum.exe"
-
-# start the daemon
-start_daemon(electrum_path)
-
-# specify the path to the folder containing the wallets
-wallets_folder = "C:/path/to/wallets/folder"
-
-# get the list of wallet files
-wallet_files = get_wallet_files(wallets_folder)
-
-# create a list to store the collected data
-data_list = []
-
-# for each wallet, get the list of addresses and their balances
-for wallet_file in wallet_files:
-    wallet_data = get_wallet_data(wallet_file, electrum_path)
-    if wallet_data:
-        data_list.extend(wallet_data)
-
-# write the data to a CSV file
-write_to_csv(data_list)
-
-# stop the daemon
-stop_daemon(electrum_path)
+        data_list
