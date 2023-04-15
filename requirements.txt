@@ -1,0 +1,4 @@
+psutil
+base58
+logbook
+pycoin
